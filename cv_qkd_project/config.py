@@ -30,6 +30,12 @@ V_EL = 0.01
 # Reconciliation efficiency (dimensionless)
 BETA = 0.95
 
+# Side-channel model strength
+# --------------------------
+# Scale factor applied to the detector-efficiency mismatch noise model.
+# Larger values make mismatch more damaging; smaller values make it milder.
+MISMATCH_NOISE_SCALE = 0.05
+
 # -------------------------
 # Optimization / grids
 # -------------------------

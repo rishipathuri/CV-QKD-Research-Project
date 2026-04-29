@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from cv_qkd_project import config
 
 def effective_eta(eta1, eta2):
     """
@@ -25,7 +26,7 @@ def effective_eta(eta1, eta2):
 
 def mismatch_noise(eta1, eta2):
     """
-    Additional (effective) excess-noise contribution from efficiency mismatch (SNU).
+    Coefficient controlling mismatch-induced excess noise (SNU per SNU).
 
     This is a lightweight side-channel model intended for simulation studies:
     mismatch increases an *effective* noise term approximately proportional to
@@ -33,9 +34,14 @@ def mismatch_noise(eta1, eta2):
 
         xi_mismatch ∝ (eta1 - eta2)^2 / mean_eta
 
-    We implement the proportionality with unit coefficient, returning:
+    We implement the proportionality with a configurable scale factor, returning
+    a coefficient:
 
-        xi_mismatch = (eta1 - eta2)^2 / (mean_eta + eps)
+        c_mismatch = scale * (eta1 - eta2)^2 / (mean_eta + eps)
+
+    This coefficient is intended to be applied to a signal-dependent term
+    (e.g., proportional to modulation variance) so that mismatch has a larger
+    impact at higher signal levels.
 
     Parameters
     ----------
@@ -45,13 +51,14 @@ def mismatch_noise(eta1, eta2):
     Returns
     -------
     np.ndarray
-        Additional noise term in SNU (non-negative).
+        Non-negative coefficient (SNU per SNU).
     """
     eta1 = np.asarray(eta1, dtype=float)
     eta2 = np.asarray(eta2, dtype=float)
     mean_eta = effective_eta(eta1, eta2)
     eps = 1e-12
-    return (eta1 - eta2) ** 2 / (mean_eta + eps)
+    base = (eta1 - eta2) ** 2 / (mean_eta + eps)
+    return config.MISMATCH_NOISE_SCALE * base
 
 
 def mismatch_detection(V_B, eta1, eta2, V_el):
@@ -83,8 +90,10 @@ def mismatch_detection(V_B, eta1, eta2, V_el):
     V_B = np.asarray(V_B, dtype=float)
     V_el = np.asarray(V_el, dtype=float)
     eta_eff = effective_eta(eta1, eta2)
-    xi_m = mismatch_noise(eta1, eta2)
-    return eta_eff * V_B + (1.0 - eta_eff) * 1.0 + V_el + xi_m
+    # Apply mismatch noise proportional to the received signal variance above vacuum.
+    c_m = mismatch_noise(eta1, eta2)
+    extra = c_m * np.maximum(V_B - 1.0, 0.0)
+    return eta_eff * V_B + (1.0 - eta_eff) * 1.0 + V_el + extra
 
 
 if __name__ == "__main__":

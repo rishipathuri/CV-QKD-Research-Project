@@ -18,16 +18,17 @@ def key_rate_mismatch(V_A, T, xi, eta1, eta2, V_el, beta):
     This wraps the standard key-rate pipeline by converting a two-arm homodyne
     mismatch (eta1 != eta2) into:
     - an effective efficiency eta_eff = (eta1 + eta2)/2
-    - an additive mismatch-induced noise term xi_mismatch (SNU)
+    - an additive mismatch-induced *excess noise* term that grows with modulation
 
-    To reuse the existing `physics.key_rate.key_rate` implementation (which
-    expects (eta, V_el) as detector parameters), we fold the mismatch noise into
-    an *effective* electronic noise:
+    We reuse the existing `physics.key_rate.key_rate` implementation by mapping
+    mismatch into an *effective* channel excess noise:
 
-        V_el_eff = V_el + eta_eff * xi_mismatch
+        xi_eff = xi + c_mismatch * V_A
 
-    so that the term V_el_eff/eta_eff in the mutual-information noise budget
-    becomes V_el/eta_eff + xi_mismatch.
+    where c_mismatch depends on (eta1, eta2) and is scaled by
+    `config.MISMATCH_NOISE_SCALE`. This makes mismatch more damaging at higher
+    modulation variance, producing the expected degradation and optimal-V_A
+    shift under mismatch.
 
     Parameters
     ----------
@@ -50,9 +51,9 @@ def key_rate_mismatch(V_A, T, xi, eta1, eta2, V_el, beta):
         Key rate under mismatch (bits/use), clipped at zero (same as standard).
     """
     eta_eff = float(effective_eta(eta1, eta2))
-    xi_m = float(mismatch_noise(eta1, eta2))
-    V_el_eff = V_el + eta_eff * xi_m
-    return key_rate(V_A=V_A, T=T, xi=xi, eta=eta_eff, V_el=V_el_eff, beta=beta)
+    c_m = mismatch_noise(eta1, eta2)
+    xi_eff = xi + c_m * np.asarray(V_A, dtype=float)
+    return key_rate(V_A=V_A, T=T, xi=xi_eff, eta=eta_eff, V_el=V_el, beta=beta)
 
 
 if __name__ == "__main__":

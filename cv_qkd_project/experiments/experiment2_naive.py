@@ -10,6 +10,7 @@ from cv_qkd_project import config
 from cv_qkd_project.optimization.brute_force import optimal_VA
 from cv_qkd_project.physics.key_rate import key_rate
 from cv_qkd_project.side_channel.key_rate_mismatch import key_rate_mismatch
+from cv_qkd_project.side_channel.mismatch import effective_eta
 
 
 def run_experiment2_naive(
@@ -26,8 +27,9 @@ def run_experiment2_naive(
     Ts = np.linspace(config.T_MIN, config.T_MAX, n_steps)
     rows = []
 
-    # Assumption for "unaware of mismatch": the system believes efficiency is eta1.
-    eta_naive = float(eta1)
+    # Assumption for "unaware of mismatch": the system uses an average efficiency
+    # but does NOT account for the additional mismatch-induced noise.
+    eta_naive = float(effective_eta(eta1, eta2))
 
     for T in Ts:
         V_A_naive, _ = optimal_VA(

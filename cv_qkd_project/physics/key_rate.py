@@ -75,8 +75,9 @@ def mutual_information(V_A, T, xi, eta, V_el):
         evaluation over a V_A grid.
     T : float
         Channel transmittance (dimensionless).
-    xi : float
-        Channel excess noise (SNU, input-referred).
+    xi : float or np.ndarray
+        Channel excess noise (SNU, input-referred). Can be scalar or an array
+        broadcastable to the shape of V_A.
     eta : float
         Bob detection efficiency (dimensionless).
     V_el : float
@@ -88,6 +89,7 @@ def mutual_information(V_A, T, xi, eta, V_el):
         I_AB in bits per channel use, broadcasted to the shape of V_A.
     """
     V_A = np.asarray(V_A, dtype=float)
+    xi = np.asarray(xi, dtype=float)
     denom = 1.0 + T * xi + (1.0 - eta) / eta + V_el / eta
     snr = (T * V_A) / denom
     return 0.5 * np.log2(1.0 + snr)
@@ -113,8 +115,11 @@ def holevo_bound(V_A, T, xi, eta, V_el):
     ----------
     V_A : float or np.ndarray
         Alice modulation variance (SNU).
-    T, xi, eta, V_el : float
+    T, eta, V_el : float
         Channel/detector parameters in the same conventions as elsewhere (SNU).
+    xi : float or np.ndarray
+        Channel excess noise (SNU, input-referred). Can be scalar or an array
+        broadcastable to the shape of V_A.
 
     Returns
     -------
@@ -122,14 +127,17 @@ def holevo_bound(V_A, T, xi, eta, V_el):
         chi_BE in bits per channel use, with the same shape as V_A.
     """
     V_A_arr = np.asarray(V_A, dtype=float)
+    xi_arr = np.asarray(xi, dtype=float)
+    V_A_arr, xi_arr = np.broadcast_arrays(V_A_arr, xi_arr)
     out = np.empty_like(V_A_arr, dtype=float)
 
     it = np.nditer(V_A_arr, flags=["multi_index"])
     for v in it:
         vA = float(v)
-        CM = build_covariance_matrix(V_A=vA, T=T, xi=xi, eta=eta, V_el=V_el)
+        this_xi = float(xi_arr[it.multi_index])
+        CM = build_covariance_matrix(V_A=vA, T=T, xi=this_xi, eta=eta, V_el=V_el)
         l1, l2 = symplectic_eigenvalues(CM)
-        l3, l4 = symplectic_eigenvalues_eve(V_A=vA, T=T, xi=xi, eta=eta, V_el=V_el)
+        l3, l4 = symplectic_eigenvalues_eve(V_A=vA, T=T, xi=this_xi, eta=eta, V_el=V_el)
         out[it.multi_index] = float(g(l1) + g(l2) - g(l3) - g(l4))
 
     return out
@@ -147,8 +155,9 @@ def key_rate(V_A, T, xi, eta, V_el, beta):
         Alice modulation variance (SNU). Supports vectorized evaluation.
     T : float
         Channel transmittance (dimensionless).
-    xi : float
-        Channel excess noise (SNU, input-referred).
+    xi : float or np.ndarray
+        Channel excess noise (SNU, input-referred). Can be scalar or an array
+        broadcastable to the shape of V_A.
     eta : float
         Bob detection efficiency (dimensionless).
     V_el : float
