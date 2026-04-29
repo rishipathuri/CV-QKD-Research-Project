@@ -10,9 +10,11 @@ from cv_qkd_project import config
 def optimal_VA(
     T: float,
     xi: float,
-    eta: float,
     V_el: float,
     beta: float,
+    eta: float | None = None,
+    eta1: float | None = None,
+    eta2: float | None = None,
     key_rate_fn: Callable[..., np.ndarray] | None = None,
 ) -> tuple[float, float]:
     """
@@ -29,15 +31,22 @@ def optimal_VA(
         Channel transmittance (dimensionless).
     xi : float
         Channel excess noise (SNU, input-referred).
-    eta : float
-        Bob detection efficiency (dimensionless).
+    eta : float, optional
+        Bob detection efficiency (dimensionless). Used by the standard key-rate
+        function. If you are optimizing a mismatch-aware key rate, pass `eta1`
+        and `eta2` instead.
+    eta1, eta2 : float, optional
+        Bob's two-arm detection efficiencies (dimensionless). If provided,
+        `optimal_VA` will call the supplied `key_rate_fn` with `(eta1, eta2)`
+        instead of `eta`.
     V_el : float
         Bob electronic noise (SNU).
     beta : float
         Reconciliation efficiency (dimensionless).
     key_rate_fn : callable, optional
-        A function compatible with signature:
-            key_rate_fn(V_A, T, xi, eta, V_el, beta) -> array_like
+        A function compatible with one of:
+            - key_rate_fn(V_A, T, xi, eta, V_el, beta) -> array_like
+            - key_rate_fn(V_A, T, xi, eta1, eta2, V_el, beta) -> array_like
         If omitted, defaults to `cv_qkd_project.physics.key_rate.key_rate`.
 
         This hook exists so later you can pass a mismatch-aware key-rate model.
@@ -51,7 +60,17 @@ def optimal_VA(
         from cv_qkd_project.physics.key_rate import key_rate as key_rate_fn  # local import
 
     V_A_grid = config.V_A_GRID
-    K = np.asarray(key_rate_fn(V_A=V_A_grid, T=T, xi=xi, eta=eta, V_el=V_el, beta=beta), dtype=float)
+    if (eta1 is not None) or (eta2 is not None):
+        if eta1 is None or eta2 is None:
+            raise ValueError("If providing mismatch parameters, both eta1 and eta2 are required.")
+        K = np.asarray(
+            key_rate_fn(V_A=V_A_grid, T=T, xi=xi, eta1=eta1, eta2=eta2, V_el=V_el, beta=beta),
+            dtype=float,
+        )
+    else:
+        if eta is None:
+            raise ValueError("eta is required when eta1/eta2 are not provided.")
+        K = np.asarray(key_rate_fn(V_A=V_A_grid, T=T, xi=xi, eta=eta, V_el=V_el, beta=beta), dtype=float)
 
     # Guard against any numerical NaNs/Infs from extreme parameters.
     K = np.where(np.isfinite(K), K, -np.inf)
