@@ -99,11 +99,12 @@ def study1_generalization_ood(
     out_results, out_figs = _ensure_dirs()
 
     rng = np.random.default_rng(seed)
-    # Mildly out-of-distribution but not universally insecure:
-    # lower T than training and higher xi than training, but still within a regime
-    # where K_opt > 0 for a non-trivial subset.
-    T = rng.uniform(0.07, 0.12, size=n_samples)
-    xi = rng.uniform(0.03, 0.06, size=n_samples)
+    # Mildly out-of-distribution but not universally insecure (given the current
+    # mismatch model): use somewhat higher-loss channels than the training
+    # region but keep xi in a range that still yields K_opt > 0 for a non-trivial
+    # fraction of samples.
+    T = rng.uniform(0.12, 0.22, size=n_samples)
+    xi = rng.uniform(0.015, 0.035, size=n_samples)
     eta1 = rng.uniform(config.ETA_MIN, config.ETA_MAX, size=n_samples)
     eta2 = rng.uniform(config.ETA_MIN, config.ETA_MAX, size=n_samples)
     X = np.stack([T, xi, eta1, eta2], axis=1)
@@ -204,7 +205,7 @@ def study2_mismatch_asymmetry(
 
     base_model, device = _load_model(checkpoint_path)
 
-    # Evaluate base model on eta2>eta1
+    # Evaluate base model on eta2>eta1 (raw ordering)
     X_eval_std = _standardize(X_eval, scaler_path)
     with torch.no_grad():
         VA_base = (
@@ -217,6 +218,22 @@ def study2_mismatch_asymmetry(
     eps = 1e-12
     rec_base = float(np.mean((K_base[K_opt_eval > eps] / K_opt_eval[K_opt_eval > eps])) * 100.0)
     mae_base = float(np.mean(np.abs(VA_base - VA_opt_eval)))
+
+    # Also evaluate a symmetry-enforced variant: sort (eta1, eta2) before feeding the model.
+    X_eval_sorted = X_eval.copy()
+    eta_hi = np.maximum(X_eval_sorted[:, 2], X_eval_sorted[:, 3])
+    eta_lo = np.minimum(X_eval_sorted[:, 2], X_eval_sorted[:, 3])
+    X_eval_sorted[:, 2] = eta_hi
+    X_eval_sorted[:, 3] = eta_lo
+    X_eval_sorted_std = _standardize(X_eval_sorted, scaler_path)
+    with torch.no_grad():
+        VA_base_sorted = (
+            base_model.predict_VA(torch.from_numpy(X_eval_sorted_std).to(device)).detach().cpu().numpy().astype(float)
+        )
+    VA_base_sorted = np.clip(VA_base_sorted, config.V_A_MIN, config.V_A_MAX)
+    K_base_sorted = _key_rate_for_samples(VA_base_sorted, X_eval)
+    rec_base_sorted = float(np.mean((K_base_sorted[K_opt_eval > eps] / K_opt_eval[K_opt_eval > eps])) * 100.0)
+    mae_base_sorted = float(np.mean(np.abs(VA_base_sorted - VA_opt_eval)))
 
     # Fine-tune a fresh copy of the base model on eta1>eta2 subset
     ft_model = VAPredictor(input_dim=4).to(device)
@@ -251,17 +268,26 @@ def study2_mismatch_asymmetry(
 
     df = pd.DataFrame(
         [
-            {"model": "base", "eval_order": "eta2>eta1", "mae_VA": mae_base, "recovery_pct": rec_base},
+            {"model": "base_raw", "eval_order": "eta2>eta1", "mae_VA": mae_base, "recovery_pct": rec_base},
+            {"model": "base_sorted_eta", "eval_order": "eta2>eta1", "mae_VA": mae_base_sorted, "recovery_pct": rec_base_sorted},
             {"model": "fine_tuned_eta1>eta2", "eval_order": "eta2>eta1", "mae_VA": mae_ft, "recovery_pct": rec_ft},
         ]
     )
     out_csv = out_results / "robustness_mismatch_asymmetry.csv"
     df.to_csv(out_csv, index=False)
 
-    plt.figure(figsize=(7, 4))
+    plt.figure(figsize=(9, 4))
+    plt.subplot(1, 2, 1)
     plt.bar(df["model"], df["recovery_pct"])
     plt.ylabel("Mean key-rate recovery (%)")
-    plt.title("Mismatch asymmetry generalization (evaluate on eta2>eta1)")
+    plt.title("Recovery (evaluate on eta2>eta1)")
+    plt.grid(True, axis="y", ls="--", alpha=0.4)
+    plt.xticks(rotation=15, ha="right")
+
+    plt.subplot(1, 2, 2)
+    plt.bar(df["model"], df["mae_VA"])
+    plt.ylabel("MAE on $V_A^*$ (SNU)")
+    plt.title("MAE (evaluate on eta2>eta1)")
     plt.grid(True, axis="y", ls="--", alpha=0.4)
     plt.xticks(rotation=15, ha="right")
     out_png = out_figs / "robustness_mismatch_asymmetry.png"
