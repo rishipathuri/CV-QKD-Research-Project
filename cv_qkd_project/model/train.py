@@ -24,6 +24,24 @@ class TrainConfig:
     lr_factor: float = 0.5
     num_workers: int = 0
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    seed: int = 123
+    deterministic: bool = True
+
+
+def _set_reproducible(seed: int, deterministic: bool) -> None:
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    if deterministic:
+        # Try to make CUDA/cuDNN behavior deterministic. This can slow training a bit.
+        try:
+            torch.use_deterministic_algorithms(True)
+        except Exception:
+            pass
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 def _epoch_mse(model: nn.Module, loader: DataLoader, device: str) -> float:
@@ -55,6 +73,7 @@ def train(
     - best model weights to `checkpoints/best_model.pt` (best val MSE)
     - train/val loss curve plot to `outputs/figures/training_loss.png`
     """
+    _set_reproducible(seed=cfg.seed, deterministic=cfg.deterministic)
     device = cfg.device
     model = VAPredictor(input_dim=4).to(device)
 

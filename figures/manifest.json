@@ -1,0 +1,61 @@
+{
+  "copied": [
+    {
+      "from": "outputs/figures/main_result.png",
+      "to": "figures/main_result.png"
+    },
+    {
+      "from": "outputs/figures/robustness_ood_generalization.png",
+      "to": "figures/robustness_ood_generalization.png"
+    },
+    {
+      "from": "outputs/figures/robustness_mismatch_asymmetry.png",
+      "to": "figures/robustness_mismatch_asymmetry.png"
+    },
+    {
+      "from": "outputs/figures/robustness_architecture_ablation.png",
+      "to": "figures/robustness_architecture_ablation.png"
+    },
+    {
+      "from": "outputs/figures/robustness_speed_benchmark.png",
+      "to": "figures/robustness_speed_benchmark.png"
+    },
+    {
+      "from": "outputs/figures/parity_plot.png",
+      "to": "figures/parity_plot.png"
+    },
+    {
+      "from": "outputs/figures/training_loss.png",
+      "to": "figures/training_loss.png"
+    },
+    {
+      "from": "outputs/figures/key_rate_validation.png",
+      "to": "figures/key_rate_validation.png"
+    },
+    {
+      "from": "outputs/figures/key_rate_vs_delta_eta.png",
+      "to": "figures/key_rate_vs_delta_eta.png"
+    },
+    {
+      "from": "outputs/figures/key_rate_vs_VA_mismatch_levels.png",
+      "to": "figures/key_rate_vs_VA_mismatch_levels.png"
+    },
+    {
+      "from": "outputs/figures/optimizer_validation_unimodal.png",
+      "to": "figures/optimizer_validation_unimodal.png"
+    },
+    {
+      "from": "outputs/figures/optimizer_validation_optimal_VA_vs_T.png",
+      "to": "figures/optimizer_validation_optimal_VA_vs_T.png"
+    },
+    {
+      "from": "outputs/figures/optimizer_validation_key_rate_vs_distance.png",
+      "to": "figures/optimizer_validation_key_rate_vs_distance.png"
+    }
+  ],
+  "generated_at_utc": "2026-05-02T15:44:58.393748+00:00",
+  "missing": [],
+  "note": "These are copied snapshots of the current outputs/figures/*.png at publish time.",
+  "outputs_dir": "outputs/figures",
+  "paper_dir": "figures"
+}

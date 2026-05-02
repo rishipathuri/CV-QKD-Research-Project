@@ -51,6 +51,16 @@ Copy final publication figures into:
 
 This keeps curated figures separate from auto-generated `outputs/figures/`.
 
+To snapshot the *current* run’s figures into `figures/` with stable filenames:
+
+```bash
+python3 -m cv_qkd_project.publish_figures
+```
+
+If you re-run training from scratch (e.g. delete `checkpoints/`), results may shift slightly.
+The training loop is configured to be reproducible by default (fixed seed + deterministic mode),
+but GPU stacks can still introduce tiny differences on some systems.
+
 ### Reproducibility snapshot
 
 Each full pipeline run writes:
