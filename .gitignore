@@ -27,3 +27,9 @@ Thumbs.db
 data/
 checkpoints/
 outputs/
+# Reproducibility: allow one JSON snapshot in results/ to be versioned
+!outputs/
+outputs/*
+!outputs/results/
+outputs/results/*
+!outputs/results/run_config.json

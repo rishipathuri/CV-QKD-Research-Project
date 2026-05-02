@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
+import platform
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +20,62 @@ from cv_qkd_project.experiments.experiment3_adaptive import run_experiment3_adap
 from cv_qkd_project.experiments.robustness import run_all_robustness
 from cv_qkd_project.figures.plot_utils import plot_three_experiments
 from cv_qkd_project.model.train import train
+
+
+def _np_to_jsonable(obj):
+    """Best-effort conversion of numpy objects into JSON-serializable Python types."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    return obj
+
+
+def write_run_config_snapshot(out_path: str | os.PathLike = "outputs/results/run_config.json") -> Path:
+    """
+    Persist a JSON snapshot of important simulation/training configuration values.
+
+    This lives under `outputs/results/` (normally ignored) but can be explicitly
+    tracked via `.gitignore` exceptions if desired for reproducibility notes.
+    """
+    cfg_dict = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "cv_qkd_project.config": {
+            "T_MIN": float(config.T_MIN),
+            "T_MAX": float(config.T_MAX),
+            "XI_MIN": float(config.XI_MIN),
+            "XI_MAX": float(config.XI_MAX),
+            "ETA_MIN": float(config.ETA_MIN),
+            "ETA_MAX": float(config.ETA_MAX),
+            "V_EL": float(config.V_EL),
+            "BETA": float(config.BETA),
+            "MISMATCH_NOISE_SCALE": float(config.MISMATCH_NOISE_SCALE),
+            "V_A_GRID_SIZE": int(config.V_A_GRID_SIZE),
+            "V_A_MIN": float(config.V_A_MIN),
+            "V_A_MAX": float(config.V_A_MAX),
+            "DATASET_SIZE_N": int(config.DATASET_SIZE_N),
+            # Large but bounded (200 points): keep as array for exact reproducibility.
+            "V_A_GRID": _np_to_jsonable(config.V_A_GRID),
+        },
+        "paths": {
+            "raw_data_dir": "data/raw",
+            "processed_dir": "data/processed",
+            "checkpoint": "checkpoints/best_model.pt",
+            "results_dir": "outputs/results",
+            "figures_dir": "outputs/figures",
+            "paper_figures_dir": "figures",
+        },
+    }
+
+    out_path = Path(out_path)
+    os.makedirs(out_path.parent, exist_ok=True)
+    out_path.write_text(json.dumps(cfg_dict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"[main] wrote config snapshot: {out_path}")
+    return out_path
 
 
 def _raw_data_empty(raw_dir: str | os.PathLike = "data/raw") -> bool:
@@ -86,7 +146,10 @@ def run_pipeline() -> None:
     # 6) Combined figure
     plot_three_experiments()
 
-    # 7) Summary at T=0.5
+    # 7) Persist reproducibility snapshot
+    write_run_config_snapshot()
+
+    # 8) Summary at T=0.5
     exp1 = pd.read_csv("outputs/results/experiment1.csv")
     exp1b = pd.read_csv("outputs/results/experiment1b_mismatch_opt.csv")
     exp2 = pd.read_csv("outputs/results/experiment2.csv")
